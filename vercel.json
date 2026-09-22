@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/generate-pagellone",
+      "schedule": "30 7 * * 1"
+    }
+  ]
+}
