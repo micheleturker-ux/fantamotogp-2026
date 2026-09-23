@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { getRiderMeta, TEAM_ORDER } from '../lib/riderMeta';
 
-const TABS = ['Home', 'Pronostico', 'Classifica', 'Paddock', 'Calendario', 'Admin'];
+const TABS = ['Home', 'Pronostico', 'News', 'Classifica', 'Paddock', 'Storico', 'Calendario', 'Regolamento', 'Admin'];
 
 function fmt(n) {
   if (n === null || n === undefined) return '—';
@@ -54,6 +55,12 @@ export default function App() {
   const [resultForm, setResultForm] = useState({ p1:'', p2:'', p3:'', p4:'', p5:'', fastest:'', crash:'' });
   const [adminState, setAdminState] = useState('');
 
+  const [news, setNews] = useState([]);
+  const [newsState, setNewsState] = useState('');
+  const [historyGpId, setHistoryGpId] = useState('');
+  const [historyData, setHistoryData] = useState(null);
+  const [historyState, setHistoryState] = useState('');
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
@@ -68,6 +75,17 @@ export default function App() {
     const timer = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+
+  useEffect(() => {
+    if (tab === 'News' && news.length === 0) loadNews();
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'Storico' || !gps.length) return;
+    const target = gps.find(g => String(g.id) === String(historyGpId)) || gps[0];
+    if (target) loadHistory(target);
+  }, [tab, historyGpId, gps.length]);
 
   useEffect(() => {
     if (!session?.user) {
@@ -106,6 +124,7 @@ export default function App() {
     if (upcoming) {
       setSelectedSessionId(String(upcoming.id));
       setAdminSessionId(String(upcoming.id));
+      setHistoryGpId(String(upcoming.grand_prix_id));
     }
     setLoading(false);
   }
@@ -220,6 +239,35 @@ export default function App() {
     await bootstrap();
   }
 
+  async function loadNews() {
+    setNewsState('Aggiornamento news…');
+    try {
+      const res = await fetch('/api/news', { cache: 'no-store' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'News non disponibili');
+      setNews(body.items || []);
+      setNewsState(body.updatedAt ? `Aggiornate alle ${new Date(body.updatedAt).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}` : 'Aggiornate');
+    } catch (err) {
+      setNewsState(err.message || 'Errore news');
+    }
+  }
+
+  async function loadHistory(gp) {
+    if (!gp) return;
+    setHistoryState('Caricamento storico…');
+    setHistoryData(null);
+    try {
+      const qs = new URLSearchParams({ circuit: gp.circuit || '', name: gp.name || '' });
+      const res = await fetch(`/api/history?${qs.toString()}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Storico non disponibile');
+      setHistoryData(body);
+      setHistoryState('');
+    } catch (err) {
+      setHistoryState(err.message || 'Storico non disponibile');
+    }
+  }
+
   async function saveResult(e) {
     e.preventDefault();
     setAdminState('Calcolo punteggi...');
@@ -325,12 +373,12 @@ export default function App() {
           <form onSubmit={submitPrediction} className="stack">
             <Card>
               <h3>Top 5</h3>
-              {[1,2,3,4,5].map(n=><RiderSelect key={n} label={`${n}° posizione`} value={form[`p${n}`]} onChange={v=>setForm({...form,[`p${n}`]:v})} riders={riders} disabled={!isOpen}/>) }
+              {[1,2,3,4,5].map(n=><RiderSelect key={n} label={`${n}° posizione`} value={form[`p${n}`]} onChange={v=>setForm({...form,[`p${n}`]:v})} riders={riders} disabled={!isOpen} showCard/>) }
             </Card>
             <Card>
               <h3>Bonus</h3>
-              <RiderSelect label="⚡ Giro veloce" value={form.fastest} onChange={v=>setForm({...form,fastest:v})} riders={riders} disabled={!isOpen}/>
-              <RiderSelect label="💥 Caduta" value={form.crash} onChange={v=>setForm({...form,crash:v})} riders={riders} disabled={!isOpen}/>
+              <RiderSelect label="⚡ Giro veloce" value={form.fastest} onChange={v=>setForm({...form,fastest:v})} riders={riders} disabled={!isOpen} showCard/>
+              <RiderSelect label="💥 Caduta" value={form.crash} onChange={v=>setForm({...form,crash:v})} riders={riders} disabled={!isOpen} showCard/>
             </Card>
             <button className="primary" disabled={!isOpen}>{myPrediction?'AGGIORNA PRONOSTICO':'SALVA PRONOSTICO'} 🔒</button>
             {saveState && <div className="notice">{saveState}</div>}
@@ -338,6 +386,22 @@ export default function App() {
 
           {visiblePredictions.length > 1 && <><h2 className="sectionTitle">Pronostici sbloccati</h2>
             {visiblePredictions.map(p=><Card key={p.id}><b>{p.profiles?.nickname || 'Giocatore'}</b><p className="muted">Pronostico visibile dopo la chiusura.</p></Card>)}</>}
+        </>}
+
+
+        {tab === 'News' && <>
+          <div className="pageTitle"><Badge tone="red">LIVE FEED</Badge><h1>News MotoGP</h1><p>Ultime notizie, Practice, qualifiche, Sprint e paddock.</p></div>
+          <div className="newsToolbar">
+            <span>{newsState || 'Feed Motorsport.com MotoGP'}</span>
+            <button className="secondary smallButton" onClick={loadNews}>↻ AGGIORNA</button>
+          </div>
+          {news.length ? <div className="newsList">{news.map((n,i)=><a className="newsCard" href={n.link} target="_blank" rel="noreferrer" key={`${n.link}-${i}`}>
+            <div className="newsMeta"><Badge tone={i===0?'red':'neutral'}>{i===0?'ULTIMA':'NEWS'}</Badge><span>{n.pubDate ? new Date(n.pubDate).toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : ''}</span></div>
+            <h3>{n.title}</h3>
+            {n.summary && <p>{n.summary}</p>}
+            <div className="newsSource">Motorsport.com Italia <b>→</b></div>
+          </a>)}</div> : <Card><p className="muted">{newsState || 'Caricamento news…'}</p></Card>}
+          <Card className="officialLinkCard"><div><small>FONTE UFFICIALE</small><b>MotoGP™ Latest News</b></div><a href="https://www.motogp.com/it/news/latest-news" target="_blank" rel="noreferrer">APRI ↗</a></Card>
         </>}
 
         {tab === 'Classifica' && <>
@@ -372,6 +436,46 @@ export default function App() {
             <p className="muted">Il lunedì mattina l'app potrà leggere i punteggi del weekend e pubblicare automaticamente il resoconto.</p>
             <div className="reportPreview">“Il Re resiste. Il Faraone assalta. Scartato controlla se ha impostato la sveglia.”</div>
           </Card>}
+        </>}
+
+
+        {tab === 'Storico' && <>
+          <div className="pageTitle"><Badge tone="orange">TRACK INTELLIGENCE</Badge><h1>Storico pista</h1><p>Ultimi cinque anni: chi ha funzionato davvero su questo circuito.</p></div>
+          <Card>
+            <label>Circuito
+              <select value={historyGpId} onChange={e=>setHistoryGpId(e.target.value)}>
+                {gps.map(g=><option key={g.id} value={g.id}>#{g.round} {g.name} · {g.circuit}</option>)}
+              </select>
+            </label>
+          </Card>
+          {historyState && <div className="notice">{historyState}</div>}
+          {historyData?.intelligence && <div className="intelGrid">
+            <Card><small>PIÙ VITTORIE</small><strong>{historyData.intelligence.mostWins || '—'}</strong></Card>
+            <Card><small>PIÙ PODI</small><strong>{historyData.intelligence.mostPodiums || '—'}</strong></Card>
+            <Card><small>COSTRUTTORE</small><strong>{historyData.intelligence.topConstructor || '—'}</strong></Card>
+          </div>}
+          {historyData?.years?.length ? <div className="historyYears">{historyData.years.map(y=><Card key={y.year} className="historyCard">
+            <div className="historyHead"><strong>{y.year}</strong><span>{y.circuit || historyData.circuit}</span></div>
+            {y.top5?.length ? <div className="historyTop5">{y.top5.map(r=><div key={`${y.year}-${r.position}`}><b>{r.position}</b><span><strong>{r.rider}</strong><small>{r.team} · {r.constructor}</small></span></div>)}</div> : <p className="muted">GP non disputato / dati non disponibili.</p>}
+          </Card>)}</div> : (!historyState && <Card><p className="muted">Seleziona una pista per caricare lo storico.</p></Card>)}
+          <p className="sourceNote">Dati storici: risultati MotoGP™. La sezione è informativa e non genera pronostici.</p>
+        </>}
+
+        {tab === 'Regolamento' && <>
+          <div className="pageTitle"><Badge tone="red">RULE BOOK</Badge><h1>Regolamento</h1><p>Una sola versione ufficiale. Quella dell'app.</p></div>
+          <Card className="ruleHero"><div className="ruleNo">01</div><div><h3>Deadline</h3><p>Il pronostico si può inserire e modificare fino all'ora limite indicata dal countdown. Dal minuto successivo è bloccato. Il countdown dell'app fa fede.</p></div></Card>
+          <div className="ruleGrid">
+            <Card><span>🥇</span><b>1° esatto</b><strong>coeff. ×5</strong></Card>
+            <Card><span>🥈</span><b>2° esatto</b><strong>coeff. ×3</strong></Card>
+            <Card><span>🥉</span><b>3° esatto</b><strong>coeff. ×2</strong></Card>
+            <Card><span>4️⃣</span><b>4° esatto</b><strong>coeff. ×1,5</strong></Card>
+            <Card><span>5️⃣</span><b>5° esatto</b><strong>coeff. ×1,5</strong></Card>
+          </div>
+          <Card className="ruleList"><h3>Bonus & malus</h3><p>⚡ Giro veloce corretto <b>+1</b></p><p>💥 Caduta corretta <b>+1</b></p><p>🎯 Prime 4 posizioni tutte esatte <b>+4</b></p><p>✨ Golden: Top 4 + giro veloce + caduta <b>+5</b></p><p>☠️ Nessuno dei 5 pronosticati nella Top 5 reale <b>−5</b></p><p>↔️ Pilota nei primi 5 ma in posizione diversa: vale il <b>coefficiente base</b>.</p></Card>
+          <h2 className="sectionTitle">Coefficienti piloti 2026</h2>
+          <div className="coeffGrid">{riders.map(r=>{const m=getRiderMeta(r.name); return <div className={`coeffCard ${m.teamClass}`} key={r.id}><div className="riderNo">#{m.number || '—'}</div><div><b>{r.name}</b><span>{m.team || 'MotoGP'} · {m.bike || ''}</span></div><strong>x{String(r.coefficient).replace('.',',')}</strong></div>})}</div>
+          <h2 className="sectionTitle">Griglia MotoGP 2026</h2>
+          <div className="teamGrid">{TEAM_ORDER.map(t=><Card key={t.team} className={`teamCard ${t.teamClass}`}><div className="teamBike">{t.bike}</div><h3>{t.team}</h3><p>{t.riders.join(' · ')}</p></Card>)}</div>
         </>}
 
         {tab === 'Calendario' && <>
@@ -412,12 +516,23 @@ export default function App() {
   );
 }
 
-function RiderSelect({ label, value, onChange, riders, disabled=false }) {
-  return <label className="riderSelect">{label}<select disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}><option value="">Seleziona pilota</option>{riders.map(r=><option key={r.id} value={r.id}>{r.name} · x{String(r.coefficient).replace('.',',')}</option>)}</select></label>;
+function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=false }) {
+  const selected = riders.find(r => String(r.id) === String(value));
+  const meta = selected ? getRiderMeta(selected.name) : null;
+  return <label className="riderSelect">{label}<select disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}><option value="">Seleziona pilota</option>{riders.map(r=>{const m=getRiderMeta(r.name); return <option key={r.id} value={r.id}>#{m.number || '—'} {r.name} · {m.bike || 'MotoGP'} · x{String(r.coefficient).replace('.',',')}</option>})}</select>{showCard && selected && <RiderMiniCard rider={selected} meta={meta} />}</label>;
+}
+
+function RiderMiniCard({ rider, meta }) {
+  return <div className={`riderMiniCard ${meta?.teamClass || ''}`}>
+    <div className="miniNumber">{meta?.number || '—'}</div>
+    <div className="miniBike"><span className="bikeSilhouette">🏍</span><small>{meta?.bike || 'MotoGP'}</small></div>
+    <div className="miniRider"><b>{rider.name}</b><span>{meta?.team || 'MotoGP'} </span></div>
+    <div className="miniCoeff">x{String(rider.coefficient).replace('.',',')}</div>
+  </div>;
 }
 
 function navIcon(x) {
-  return ({Home:'⌂',Pronostico:'🏁',Classifica:'▥',Paddock:'🏆',Calendario:'◫',Admin:'⚙'})[x];
+  return ({Home:'⌂',Pronostico:'🏁',News:'◉',Classifica:'▥',Paddock:'🏆',Storico:'📊',Calendario:'◫',Regolamento:'§',Admin:'⚙'})[x];
 }
 
 
