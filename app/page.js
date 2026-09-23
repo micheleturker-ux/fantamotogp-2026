@@ -519,15 +519,67 @@ export default function App() {
 function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=false }) {
   const selected = riders.find(r => String(r.id) === String(value));
   const meta = selected ? getRiderMeta(selected.name) : null;
-  return <label className="riderSelect">{label}<select disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}><option value="">Seleziona pilota</option>{riders.map(r=>{const m=getRiderMeta(r.name); return <option key={r.id} value={r.id}>#{m.number || '—'} {r.name} · {m.bike || 'MotoGP'} · x{String(r.coefficient).replace('.',',')}</option>})}</select>{showCard && selected && <RiderMiniCard rider={selected} meta={meta} />}</label>;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  if (!showCard) {
+    return <label className="riderSelect">{label}<select disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}><option value="">Seleziona pilota</option>{riders.map(r=>{const m=getRiderMeta(r.name); return <option key={r.id} value={r.id}>#{m.number || '—'} {r.name} · {m.bike || 'MotoGP'} · x{String(r.coefficient).replace('.',',')}</option>})}</select></label>;
+  }
+
+  const filtered = riders.filter(r => {
+    const m = getRiderMeta(r.name);
+    const haystack = `${r.name} ${m.team} ${m.bike} ${m.number}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
+
+  return <div className="riderPickerField">
+    <div className="riderPickerLabel">{label}</div>
+    <button type="button" className={`riderPickerButton ${selected ? 'hasRider' : ''}`} disabled={disabled} onClick={()=>!disabled && setOpen(true)}>
+      {selected ? <RiderShowcase rider={selected} meta={meta} /> : <div className="riderEmpty"><span className="riderEmptyFlag">🏁</span><div><b>SCEGLI PILOTA</b><small>Apri il garage MotoGP</small></div><span className="riderEmptyArrow">＋</span></div>}
+    </button>
+    {open && <div className="riderPickerOverlay" role="dialog" aria-modal="true">
+      <button type="button" className="riderPickerBackdrop" aria-label="Chiudi" onClick={()=>setOpen(false)} />
+      <section className="riderPickerSheet">
+        <div className="riderPickerHead"><div><span className="pickerEyebrow">MOTOGP 2026 · RIDER GARAGE</span><h2>{label}</h2></div><button type="button" className="pickerClose" onClick={()=>setOpen(false)}>×</button></div>
+        <div className="riderSearch"><span>⌕</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cerca pilota, team o numero…" /></div>
+        <div className="riderPickerGrid">{filtered.map(r=>{const m=getRiderMeta(r.name); const active=String(r.id)===String(value); return <button type="button" key={r.id} className={`riderChoice ${m.teamClass || ''} ${active?'selected':''}`} onClick={()=>{onChange(String(r.id));setOpen(false);setQuery('')}}>
+          <RiderArt meta={m} compact />
+          <div className="choiceInfo"><div className="choiceTop"><span>{m.flag || '🏁'} #{m.number || '—'}</span><strong>x{String(r.coefficient).replace('.',',')}</strong></div><b>{r.name}</b><small>{m.team || 'MotoGP'}</small><em>{m.bike || 'MotoGP'}</em></div>
+        </button>})}</div>
+        {!filtered.length && <div className="riderNoResults">Nessun pilota trovato.</div>}
+      </section>
+    </div>}
+  </div>;
 }
 
-function RiderMiniCard({ rider, meta }) {
-  return <div className={`riderMiniCard ${meta?.teamClass || ''}`}>
-    <div className="miniNumber">{meta?.number || '—'}</div>
-    <div className="miniBike"><span className="bikeSilhouette">🏍</span><small>{meta?.bike || 'MotoGP'}</small></div>
-    <div className="miniRider"><b>{rider.name}</b><span>{meta?.team || 'MotoGP'} </span></div>
-    <div className="miniCoeff">x{String(rider.coefficient).replace('.',',')}</div>
+function RiderShowcase({ rider, meta }) {
+  return <div className={`riderShowcase ${meta?.teamClass || ''}`}>
+    <RiderArt meta={meta} />
+    <div className="riderShowcaseInfo">
+      <div className="riderShowcaseTop"><span>{meta?.flag || '🏁'} #{meta?.number || '—'}</span><strong>x{String(rider.coefficient).replace('.',',')}</strong></div>
+      <h4>{rider.name}</h4>
+      <p>{meta?.team || 'MotoGP'}</p>
+      <div className="riderMachine"><span>FACTORY MACHINE</span><b>{meta?.bike || 'MotoGP'}</b></div>
+    </div>
+    <div className="changeRider">CAMBIA</div>
+  </div>;
+}
+
+function RiderArt({ meta, compact=false }) {
+  const no = meta?.number || '—';
+  return <div className={`riderArt ${meta?.teamClass || ''} ${compact?'compact':''}`}>
+    <svg viewBox="0 0 240 150" aria-hidden="true">
+      <defs><linearGradient id={`fade-${meta?.teamClass || 'r'}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".98"/><stop offset="1" stopColor="currentColor" stopOpacity=".22"/></linearGradient></defs>
+      <path className="speedLine" d="M18 112 C62 97 100 93 141 96" />
+      <circle className="wheel" cx="65" cy="112" r="24"/><circle className="wheel" cx="184" cy="112" r="24"/>
+      <circle className="rim" cx="65" cy="112" r="11"/><circle className="rim" cx="184" cy="112" r="11"/>
+      <path className="bikeBody" d="M61 100 L91 74 L143 72 L173 94 L190 99 L178 109 L145 101 L108 102 L83 111 Z"/>
+      <path className="bikeWing" d="M137 70 L171 58 L180 62 L158 78 Z"/>
+      <path className="riderBody" d="M105 73 C111 51 130 42 149 49 C160 54 166 66 166 78 L143 80 L128 69 Z"/>
+      <circle className="helmet" cx="125" cy="48" r="18"/>
+      <path className="visor" d="M114 44 Q127 35 141 43 L137 51 L115 51 Z"/>
+    </svg>
+    <span className="artNumber">{no}</span><span className="artStripe"/><span className="artBadge">{meta?.bike || 'MotoGP'}</span>
   </div>;
 }
 
