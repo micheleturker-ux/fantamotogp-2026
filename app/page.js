@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getRiderMeta, TEAM_ORDER } from '../lib/riderMeta';
 
-const TABS = ['Home', 'Pronostico', 'News', 'Classifica', 'Paddock', 'Storico', 'Calendario', 'Regolamento', 'Admin'];
+const TABS = ['Home', 'News', 'Calendario', 'Storico', 'Paddock', 'Pronostico', 'Regolamento', 'Admin'];
 
 function fmt(n) {
   if (n === null || n === undefined) return '—';
@@ -310,7 +310,7 @@ export default function App() {
   }
 
   return (
-    <main className="appShell">
+    <main className={`appShell theme-${tab.toLowerCase()}`}>
       <header className="topbar">
         <div><span className="miniLogo">FANTA</span><b>MOTOGP</b><span className="season">26</span></div>
         <button className="ghost" onClick={logout}>Esci</button>
@@ -404,17 +404,6 @@ export default function App() {
           <Card className="officialLinkCard"><div><small>FONTE UFFICIALE</small><b>MotoGP™ Latest News</b></div><a href="https://www.motogp.com/it/news/latest-news" target="_blank" rel="noreferrer">APRI ↗</a></Card>
         </>}
 
-        {tab === 'Classifica' && <>
-          <div className="pageTitle"><Badge tone="red">WORLD CHAMPIONSHIP</Badge><h1>Classifica</h1></div>
-          <div className="championHero"><span>LEADER</span><strong>{leader?.nickname}</strong><em>{fmt(leader?.total_points)}</em></div>
-          <div className="podiumList">
-            {leaderboard.map((x,i)=><div className={`rankRow rank${i+1}`} key={x.user_id}>
-              <div className="rankPos">{i+1}</div><div className="rankName"><b>{x.nickname}</b><span>{x.sessions_played} sessioni · {x.victories} vittorie</span></div><div className="rankPts">{fmt(x.total_points)}<small>{i===0?'👑':fmt(x.gap)}</small></div>
-            </div>)}
-          </div>
-        </>}
-
-
         {tab === 'Paddock' && <>
           <div className="pageTitle"><Badge tone="orange">CLUBHOUSE</Badge><h1>Paddock</h1><p>Pagellone, rivalità e avatar che evolvono con il campionato.</p></div>
 
@@ -481,7 +470,7 @@ export default function App() {
         {tab === 'Calendario' && <>
           <div className="pageTitle"><Badge tone="neutral">22 ROUND</Badge><h1>Calendario</h1></div>
           <div className="calendarList">
-            {gps.map(g=><Card key={g.id} className="gpCard"><div className="round">{String(g.round).padStart(2,'0')}</div><div><b>{g.name}</b><span>{g.circuit}</span></div><time>{g.gp_date ? new Date(`${g.gp_date}T12:00:00`).toLocaleDateString('it-IT',{day:'2-digit',month:'short'}) : '—'}</time></Card>)}
+            {gps.map(g=><Card key={g.id} className="gpCard"><div className="round">{String(g.round).padStart(2,'0')}</div><div className="gpIdentity"><div className="gpNameLine"><b>{g.name}</b><span className="circuitPill">📍 {g.circuit}</span></div><span className="gpSubline">ROUND {String(g.round).padStart(2,'0')} · MOTOGP 2026</span></div><time>{g.gp_date ? new Date(`${g.gp_date}T12:00:00`).toLocaleDateString('it-IT',{day:'2-digit',month:'short'}) : '—'}</time></Card>)}
           </div>
         </>}
 
@@ -510,7 +499,7 @@ export default function App() {
       </div>
 
       <nav className="bottomNav">
-        {TABS.filter(x=>x!=='Admin' || profile?.role==='admin').map(x=><button key={x} className={tab===x?'active':''} onClick={()=>setTab(x)}><span>{navIcon(x)}</span>{x}</button>)}
+        {TABS.filter(x=>x!=='Admin' || profile?.role==='admin').map(x=><button key={x} data-tab={x.toLowerCase()} className={tab===x?'active':''} onClick={()=>setTab(x)}><span>{navIcon(x)}</span>{x}</button>)}
       </nav>
     </main>
   );
@@ -542,7 +531,7 @@ function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=
       <section className="riderPickerSheet">
         <div className="riderPickerHead"><div><span className="pickerEyebrow">MOTOGP 2026 · RIDER GARAGE</span><h2>{label}</h2></div><button type="button" className="pickerClose" onClick={()=>setOpen(false)}>×</button></div>
         <div className="riderSearch"><span>⌕</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cerca pilota, team o numero…" /></div>
-        <div className="riderPickerGrid">{filtered.map(r=>{const m=getRiderMeta(r.name); const active=String(r.id)===String(value); return <button type="button" key={r.id} className={`riderChoice ${m.teamClass || ''} ${active?'selected':''}`} onClick={()=>{onChange(String(r.id));setOpen(false);setQuery('')}}>
+        <div className="riderPickerGrid">{filtered.map(r=>{const m=getRiderMeta(r.name); const active=String(r.id)===String(value); return <button type="button" key={r.id} className={`riderChoice ${m.teamClass || ''} ${active?'selected':''}`} style={riderVars(m)} data-pattern={m.pattern || 'slash'} onClick={()=>{onChange(String(r.id));setOpen(false);setQuery('')}}>
           <RiderArt meta={m} compact />
           <div className="choiceInfo"><div className="choiceTop"><span>{m.flag || '🏁'} #{m.number || '—'}</span><strong>x{String(r.coefficient).replace('.',',')}</strong></div><b>{r.name}</b><small>{m.team || 'MotoGP'}</small><em>{m.bike || 'MotoGP'}</em></div>
         </button>})}</div>
@@ -553,7 +542,7 @@ function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=
 }
 
 function RiderShowcase({ rider, meta }) {
-  return <div className={`riderShowcase ${meta?.teamClass || ''}`}>
+  return <div className={`riderShowcase ${meta?.teamClass || ''}`} style={riderVars(meta)} data-pattern={meta?.pattern || 'slash'}>
     <RiderArt meta={meta} />
     <div className="riderShowcaseInfo">
       <div className="riderShowcaseTop"><span>{meta?.flag || '🏁'} #{meta?.number || '—'}</span><strong>x{String(rider.coefficient).replace('.',',')}</strong></div>
@@ -567,7 +556,7 @@ function RiderShowcase({ rider, meta }) {
 
 function RiderArt({ meta, compact=false }) {
   const no = meta?.number || '—';
-  return <div className={`riderArt ${meta?.teamClass || ''} ${compact?'compact':''}`}>
+  return <div className={`riderArt ${meta?.teamClass || ''} ${compact?'compact':''}`} style={riderVars(meta)} data-pattern={meta?.pattern || 'slash'}>
     <svg viewBox="0 0 240 150" aria-hidden="true">
       <defs><linearGradient id={`fade-${meta?.teamClass || 'r'}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".98"/><stop offset="1" stopColor="currentColor" stopOpacity=".22"/></linearGradient></defs>
       <path className="speedLine" d="M18 112 C62 97 100 93 141 96" />
@@ -579,12 +568,21 @@ function RiderArt({ meta, compact=false }) {
       <circle className="helmet" cx="125" cy="48" r="18"/>
       <path className="visor" d="M114 44 Q127 35 141 43 L137 51 L115 51 Z"/>
     </svg>
-    <span className="artNumber">{no}</span><span className="artStripe"/><span className="artBadge">{meta?.bike || 'MotoGP'}</span>
+    <span className="artNumber">{no}</span><span className="artStripe"/><span className="artPulse"/><span className="artBadge">{meta?.bike || 'MotoGP'}</span><span className="artTag">{meta?.riderTag || meta?.country || 'FACTORY'}</span>
   </div>;
 }
 
+function riderVars(meta) {
+  return {
+    '--riderA': meta?.primary || '#6b7686',
+    '--riderB': meta?.secondary || '#202938',
+    '--riderGlow': meta?.glow || meta?.primary || '#6b7686',
+    '--team': meta?.primary || '#6b7686'
+  };
+}
+
 function navIcon(x) {
-  return ({Home:'⌂',Pronostico:'🏁',News:'◉',Classifica:'▥',Paddock:'🏆',Storico:'📊',Calendario:'◫',Regolamento:'§',Admin:'⚙'})[x];
+  return ({Home:'🏠',News:'📰',Calendario:'🗓️',Storico:'🧠',Paddock:'🏆',Pronostico:'🎯',Regolamento:'📜',Admin:'🛠️'})[x];
 }
 
 
