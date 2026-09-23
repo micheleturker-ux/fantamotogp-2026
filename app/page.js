@@ -47,6 +47,7 @@ export default function App() {
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [form, setForm] = useState({ p1:'', p2:'', p3:'', p4:'', p5:'', fastest:'', crash:'' });
   const [saveState, setSaveState] = useState('');
+  const [nowTs, setNowTs] = useState(Date.now());
 
   const [adminSessionId, setAdminSessionId] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -60,6 +61,12 @@ export default function App() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
     return () => listener.subscription.unsubscribe();
+  }, []);
+
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -148,7 +155,18 @@ export default function App() {
   const leader = leaderboard[0];
   const me = leaderboard.find(x => x.user_id === session?.user?.id);
   const currentSession = sessions.find(x => String(x.id) === selectedSessionId);
-  const isOpen = currentSession && !currentSession.locked && currentSession.deadline && Date.now() < new Date(currentSession.deadline).getTime();
+  const deadlineTs = currentSession?.deadline ? new Date(currentSession.deadline).getTime() : null;
+  const isOpen = Boolean(currentSession && !currentSession.locked && deadlineTs && nowTs < deadlineTs);
+  const countdown = getCountdown(deadlineTs, nowTs);
+
+
+  useEffect(() => {
+    if (!session?.user || !selectedSessionId || !deadlineTs) return;
+    const delay = deadlineTs - Date.now();
+    if (delay <= 0) return;
+    const timer = setTimeout(() => loadPrediction(selectedSessionId), delay + 1200);
+    return () => clearTimeout(timer);
+  }, [deadlineTs, selectedSessionId, session?.user?.id]);
 
   async function submitPrediction(e) {
     e.preventDefault();
@@ -288,6 +306,7 @@ export default function App() {
               <div className={`status ${isOpen?'open':'closed'}`}>{isOpen?'APERTO':'CHIUSO'}</div>
             </div>
             <div className="deadline">Deadline: <b>{formatDeadline(currentSession.deadline)}</b></div>
+            <Countdown countdown={countdown} isOpen={isOpen} compact />
             <button className="primary" onClick={()=>setTab('Pronostico')}>{isOpen?'COMPILA PRONOSTICO':'VEDI SESSIONE'}</button>
           </Card> : <Card>Nessuna sessione configurata.</Card>}
         </>}
@@ -301,6 +320,7 @@ export default function App() {
               </select>
             </label>
             <div className="sessionMeta"><Badge tone={isOpen?'green':'neutral'}>{isOpen?'APERTA':'CHIUSA'}</Badge><span>{formatDeadline(currentSession?.deadline)}</span></div>
+            <Countdown countdown={countdown} isOpen={isOpen} />
           </Card>
           <form onSubmit={submitPrediction} className="stack">
             <Card>
@@ -401,6 +421,35 @@ function navIcon(x) {
 }
 
 
+function getCountdown(deadlineTs, nowTs) {
+  if (!deadlineTs) return null;
+  const diff = Math.max(0, deadlineTs - nowTs);
+  const total = Math.floor(diff / 1000);
+  return {
+    expired: diff <= 0,
+    days: Math.floor(total / 86400),
+    hours: Math.floor((total % 86400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+    totalMs: diff
+  };
+}
+
+function Countdown({ countdown, isOpen, compact=false }) {
+  if (!countdown) return <div className={`countdown ${compact?'compact':''} missing`}>Deadline da impostare</div>;
+  const pad = n => String(n).padStart(2, '0');
+  const urgent = isOpen && countdown.totalMs <= 60 * 60 * 1000;
+  return <div className={`countdown ${compact?'compact':''} ${urgent?'urgent':''} ${!isOpen?'expired':''}`}>
+    <div className="countdownLabel">{isOpen ? 'CHIUSURA PRONOSTICI' : 'PRONOSTICI CHIUSI'}</div>
+    {isOpen ? <div className="countdownClock">
+      <span><b>{pad(countdown.days)}</b><small>GG</small></span>
+      <i>:</i><span><b>{pad(countdown.hours)}</b><small>HH</small></span>
+      <i>:</i><span><b>{pad(countdown.minutes)}</b><small>MM</small></span>
+      <i>:</i><span><b>{pad(countdown.seconds)}</b><small>SS</small></span>
+    </div> : <div className="countdownClosed">🔒 In attesa del via</div>}
+  </div>;
+}
+
 function AvatarCard({ player, rank, leaderPoints }) {
   const pts = Number(player.total_points || 0);
   const wins = Number(player.victories || 0);
@@ -410,17 +459,42 @@ function AvatarCard({ player, rank, leaderPoints }) {
   if (pts >= 200 || wins >= 6) level = 3;
   if (pts >= 300 || wins >= 9) level = 4;
   if (rank === 1 && pts >= 300) level = 5;
-  const gear = [
-    ['🪖','Rookie','Casco base'],
-    ['🏍️','Rider','Moto + tuta'],
-    ['🔥','Pro','Visiera racing + guanti'],
-    ['🏆','Elite','Trofeo + livrea premium'],
-    ['👑','Imperatore','Corona + armatura del leader']
-  ][level-1];
-  return <Card className={`avatarCard avatarLevel${level}`}>
-    <div className="avatarTop"><div className="avatarOrb"><span>{gear[0]}</span><b>{player.nickname?.slice(0,1)}</b></div><div><small>LVL {level}</small><h3>{player.nickname}</h3><p>{gear[1]}</p></div></div>
-    <div className="gearLine"><span>{gear[2]}</span><strong>{fmt(pts)} PT</strong></div>
+
+  const isLeader = rank === 1;
+  const isLast = rank === 3;
+  const role = isLeader ? 'IMPERATORE' : isLast ? 'FANALINO DI CODA' : 'CACCIATORE';
+  const subtitle = isLeader
+    ? 'Corona salda. Gli altri inseguono.'
+    : isLast
+      ? 'Il paddock ha già ordinato le rotelle.'
+      : 'Nel mirino c’è solo il trono.';
+  const accessory = isLeader ? '👑' : isLast ? '🛟' : '🎯';
+  const prop = isLeader ? '🏆' : isLast ? '🦆' : '⚔️';
+  const title = isLeader ? 'Re del Campionato' : isLast ? 'Ultimo, ma con stile discutibile' : 'Pretendente al Trono';
+
+  return <Card className={`avatarCard avatarLevel${level} ${isLeader?'avatarLeader':''} ${isLast?'avatarLast':''}`}>
+    <div className="avatarRole">{role}</div>
+    <div className="riderPortrait" aria-hidden="true">
+      <div className="portraitHalo" />
+      <div className="helmet">
+        <div className="helmetTop">{accessory}</div>
+        <div className="visor" />
+        <div className="helmetMark">{player.nickname?.slice(0,1)}</div>
+      </div>
+      <div className="riderBody">
+        <div className="suitStripe" />
+        <div className="chestMark">FM</div>
+      </div>
+      <div className="avatarProp">{prop}</div>
+      {isLast && <div className="shameTag">3°</div>}
+    </div>
+    <div className="avatarIdentity">
+      <small>LVL {level} · {title}</small>
+      <h3>{player.nickname}</h3>
+      <p>{subtitle}</p>
+    </div>
+    <div className="gearLine"><span>{isLeader?'Livrea oro + corona':isLast?'Paperella + salvagente':'Visiera da caccia + mirino'}</span><strong>{fmt(pts)} PT</strong></div>
     <div className="xpTrack"><i style={{width:`${Math.min(100, Math.max(8,(pts%100)))}%`}} /></div>
-    <div className="avatarStats"><span>{wins} vittorie</span><span>{rank===1?'👑 Leader':`-${fmt(gap)} dal leader`}</span></div>
+    <div className="avatarStats"><span>{wins} vittorie</span><span>{isLeader?'👑 Leader':`-${fmt(gap)} dal leader`}</span></div>
   </Card>;
 }
