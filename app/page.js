@@ -35,6 +35,12 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authMode, setAuthMode] = useState('login');
+  const [nickname, setNickname] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryConfirm, setRecoveryConfirm] = useState('');
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [riders, setRiders] = useState([]);
@@ -62,11 +68,20 @@ export default function App() {
   const [historyState, setHistoryState] = useState('');
 
   useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, next) => {
+      setSession(next);
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthMode('recovery');
+        setAuthError('');
+        setAuthMessage('Link verificato. Imposta una nuova password.');
+      }
+    });
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
       setLoading(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -162,8 +177,89 @@ export default function App() {
   async function login(e) {
     e.preventDefault();
     setAuthError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setAuthMessage('');
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) setAuthError(error.message);
+  }
+
+  async function signup(e) {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    const cleanNickname = nickname.trim();
+    if (cleanNickname.length < 3 || cleanNickname.length > 24) {
+      setAuthError('Il nickname deve contenere da 3 a 24 caratteri.');
+      return;
+    }
+    if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      setAuthError('La password deve avere almeno 10 caratteri, con lettere e numeri.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthError('Le password non coincidono.');
+      return;
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { nickname: cleanNickname },
+        emailRedirectTo: `${window.location.origin}/`
+      }
+    });
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+    setPassword('');
+    setConfirmPassword('');
+    if (data.session) {
+      setAuthMessage('Account creato. Benvenuto nel paddock.');
+    } else {
+      setAuthMessage('Registrazione ricevuta. Controlla la tua email e conferma l’account prima di accedere.');
+      setAuthMode('login');
+    }
+  }
+
+  async function requestPasswordReset(e) {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    if (!email.trim()) {
+      setAuthError('Inserisci la tua email.');
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/`
+    });
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+    setAuthMessage('Se esiste un account associato a questa email, riceverai un link per reimpostare la password.');
+  }
+
+  async function finishPasswordRecovery(e) {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    if (recoveryPassword.length < 10 || !/[A-Za-z]/.test(recoveryPassword) || !/\d/.test(recoveryPassword)) {
+      setAuthError('La nuova password deve avere almeno 10 caratteri, con lettere e numeri.');
+      return;
+    }
+    if (recoveryPassword !== recoveryConfirm) {
+      setAuthError('Le password non coincidono.');
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: recoveryPassword });
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+    setRecoveryPassword('');
+    setRecoveryConfirm('');
+    setAuthMessage('Password aggiornata. Ora puoi continuare.');
+    setAuthMode('login');
   }
 
   async function logout() {
@@ -285,7 +381,7 @@ export default function App() {
 
   if (loading) return <main className="splash"><div className="logoMark">FM</div><p>Accensione motori…</p></main>;
 
-  if (!session) {
+  if (!session || authMode === 'recovery') {
     return (
       <main className="loginPage">
         <div className="loginGlow" />
@@ -294,16 +390,64 @@ export default function App() {
           <div className="brandMain">MOTOGP</div>
           <div className="brandYear">2026</div>
         </div>
-        <Card className="loginCard">
+        <Card className="loginCard authCard">
           <Badge tone="red">PADDOCK ACCESS</Badge>
-          <h1>Entra nel mondiale.</h1>
-          <p className="muted">Tre giocatori. Un regolamento. Una corona.</p>
-          <form onSubmit={login} className="stack">
-            <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
-            <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
-            {authError && <div className="error">{authError}</div>}
-            <button className="primary">ENTRA NEL PADDOCK</button>
-          </form>
+
+          {authMode === 'login' && <>
+            <h1>Entra nel mondiale.</h1>
+            <p className="muted">Accedi al tuo paddock personale.</p>
+            {authMessage && <div className="success">{authMessage}</div>}
+            <form onSubmit={login} className="stack">
+              <label>Email<input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+              <label>Password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
+              {authError && <div className="error">{authError}</div>}
+              <button className="primary">ENTRA NEL PADDOCK</button>
+            </form>
+            <div className="authActions">
+              <button type="button" className="authLink" onClick={()=>{setAuthMode('signup');setAuthError('');setAuthMessage('')}}>Crea account</button>
+              <button type="button" className="authLink" onClick={()=>{setAuthMode('forgot');setAuthError('');setAuthMessage('')}}>Password dimenticata?</button>
+            </div>
+          </>}
+
+          {authMode === 'signup' && <>
+            <h1>Entra in griglia.</h1>
+            <p className="muted">Crea il tuo profilo. Dovrai confermare l’indirizzo email.</p>
+            <form onSubmit={signup} className="stack">
+              <label>Nickname<input type="text" autoComplete="nickname" maxLength={24} value={nickname} onChange={e=>setNickname(e.target.value)} required /></label>
+              <label>Email<input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+              <label>Password<input type="password" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
+              <label>Conferma password<input type="password" autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required /></label>
+              <small className="authHint">Minimo 10 caratteri, con lettere e numeri.</small>
+              {authError && <div className="error">{authError}</div>}
+              <button className="primary">CREA ACCOUNT</button>
+            </form>
+            <button type="button" className="authBack" onClick={()=>{setAuthMode('login');setAuthError('');setAuthMessage('')}}>← Torna al login</button>
+          </>}
+
+          {authMode === 'forgot' && <>
+            <h1>Recupera accesso.</h1>
+            <p className="muted">Ti invieremo un link sicuro per scegliere una nuova password.</p>
+            {authMessage && <div className="success">{authMessage}</div>}
+            <form onSubmit={requestPasswordReset} className="stack">
+              <label>Email<input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+              {authError && <div className="error">{authError}</div>}
+              <button className="primary">INVIA LINK DI RECUPERO</button>
+            </form>
+            <button type="button" className="authBack" onClick={()=>{setAuthMode('login');setAuthError('');setAuthMessage('')}}>← Torna al login</button>
+          </>}
+
+          {authMode === 'recovery' && <>
+            <h1>Nuova password.</h1>
+            <p className="muted">Il link è stato verificato. Scegli una nuova password.</p>
+            {authMessage && <div className="success">{authMessage}</div>}
+            <form onSubmit={finishPasswordRecovery} className="stack">
+              <label>Nuova password<input type="password" autoComplete="new-password" value={recoveryPassword} onChange={e=>setRecoveryPassword(e.target.value)} required /></label>
+              <label>Conferma nuova password<input type="password" autoComplete="new-password" value={recoveryConfirm} onChange={e=>setRecoveryConfirm(e.target.value)} required /></label>
+              <small className="authHint">Minimo 10 caratteri, con lettere e numeri.</small>
+              {authError && <div className="error">{authError}</div>}
+              <button className="primary">AGGIORNA PASSWORD</button>
+            </form>
+          </>}
         </Card>
       </main>
     );
