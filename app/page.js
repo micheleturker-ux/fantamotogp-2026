@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getRiderMeta, TEAM_ORDER } from '../lib/riderMeta';
 
-const TABS = ['Home', 'News', 'Calendario', 'Storico', 'Paddock', 'Pronostico', 'Regolamento', 'Admin'];
+const TABS = ['Home', 'News', 'Calendario', 'Storico', 'Paddock', 'Pronostico', 'Account', 'Regolamento', 'Admin'];
 
 function fmt(n) {
   if (n === null || n === undefined) return '—';
@@ -41,6 +41,9 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [recoveryPassword, setRecoveryPassword] = useState('');
   const [recoveryConfirm, setRecoveryConfirm] = useState('');
+  const [deletePhrase, setDeletePhrase] = useState('');
+  const [accountState, setAccountState] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [riders, setRiders] = useState([]);
@@ -154,7 +157,7 @@ export default function App() {
       .from('predictions')
       .select('*')
       .eq('session_id', Number(id))
-      .eq('user_id', session.user.id)
+      .eq('user_id', profile?.player_id || session.user.id)
       .maybeSingle();
     setMyPrediction(data || null);
     if (data) {
@@ -169,7 +172,7 @@ export default function App() {
     }
     const { data: all } = await supabase
       .from('predictions')
-      .select('*, profiles(nickname)')
+      .select('*, players(display_name)')
       .eq('session_id', Number(id));
     setVisiblePredictions(all || []);
   }
@@ -267,8 +270,49 @@ export default function App() {
     setTab('Home');
   }
 
+
+  async function deleteAccount() {
+    setAccountState('');
+    if (profile?.role === 'admin') {
+      setAccountState('L’account Admin non può essere eliminato dall’app.');
+      return;
+    }
+    if (deletePhrase.trim() !== 'ELIMINA') {
+      setAccountState('Scrivi ELIMINA per confermare.');
+      return;
+    }
+    const confirmed = window.confirm('Eliminare definitivamente il tuo account? Lo storico sportivo verrà mantenuto in forma anonimizzata.');
+    if (!confirmed) return;
+
+    setDeletingAccount(true);
+    setAccountState('Eliminazione account in corso…');
+    try {
+      const token = session?.access_token;
+      if (!token) throw new Error('Sessione non valida. Accedi di nuovo.');
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Impossibile eliminare l’account.');
+
+      await supabase.auth.signOut({ scope: 'local' });
+      setSession(null);
+      setProfile(null);
+      setDeletePhrase('');
+      setTab('Home');
+      setAuthMode('login');
+      setAuthError('');
+      setAuthMessage('Account eliminato. Lo storico del campionato è stato conservato in forma anonimizzata.');
+    } catch (err) {
+      setAccountState(err.message || 'Errore durante l’eliminazione account.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
   const leader = leaderboard[0];
-  const me = leaderboard.find(x => x.user_id === session?.user?.id);
+  const me = leaderboard.find(x => x.user_id === (profile?.player_id || session?.user?.id));
   const currentSession = sessions.find(x => String(x.id) === selectedSessionId);
   const deadlineTs = currentSession?.deadline ? new Date(currentSession.deadline).getTime() : null;
   const isOpen = Boolean(currentSession && !currentSession.locked && deadlineTs && nowTs < deadlineTs);
@@ -529,7 +573,7 @@ export default function App() {
           </form>
 
           {visiblePredictions.length > 1 && <><h2 className="sectionTitle">Pronostici sbloccati</h2>
-            {visiblePredictions.map(p=><Card key={p.id}><b>{p.profiles?.nickname || 'Giocatore'}</b><p className="muted">Pronostico visibile dopo la chiusura.</p></Card>)}</>}
+            {visiblePredictions.map(p=><Card key={p.id}><b>{p.players?.display_name || 'Giocatore'}</b><p className="muted">Pronostico visibile dopo la chiusura.</p></Card>)}</>}
         </>}
 
 
@@ -592,6 +636,36 @@ export default function App() {
             {y.top5?.length ? <div className="historyTop5">{y.top5.map(r=><div key={`${y.year}-${r.position}`}><b>{r.position}</b><span><strong>{r.rider}</strong><small>{r.team} · {r.constructor}</small></span></div>)}</div> : <p className="muted">GP non disputato / dati non disponibili.</p>}
           </Card>)}</div> : (!historyState && <Card><p className="muted">Seleziona una pista per caricare lo storico.</p></Card>)}
           <p className="sourceNote">Dati storici: risultati MotoGP™. La sezione è informativa e non genera pronostici.</p>
+        </>}
+
+
+
+        {tab === 'Account' && <>
+          <div className="pageTitle"><Badge tone="neutral">ACCOUNT</Badge><h1>Profilo</h1><p>Gestisci accesso, identità e privacy del tuo account.</p></div>
+
+          <Card className="accountCard">
+            <div className="accountRow"><span>Nickname</span><b>{profile?.nickname || '—'}</b></div>
+            <div className="accountRow"><span>Email</span><b>{session?.user?.email || '—'}</b></div>
+            <div className="accountRow"><span>Ruolo</span><b>{profile?.role === 'admin' ? 'Admin' : 'Player'}</b></div>
+          </Card>
+
+          <Card className="privacyCard">
+            <h3>Privacy e storico</h3>
+            <p className="muted">Se elimini l’account, email, credenziali e profilo di accesso vengono rimossi. Pronostici e punteggi già registrati restano nello storico del campionato con una nuova identità tecnica e un nome anonimizzato.</p>
+          </Card>
+
+          <Card className="dangerZone">
+            <Badge tone="red">DANGER ZONE</Badge>
+            <h3>Elimina account</h3>
+            {profile?.role === 'admin' ? <>
+              <p className="muted">Per sicurezza l’account Admin non può essere eliminato direttamente dall’app.</p>
+            </> : <>
+              <p className="muted">Questa operazione è definitiva. Per confermare scrivi <b>ELIMINA</b>.</p>
+              <input value={deletePhrase} onChange={e=>setDeletePhrase(e.target.value)} placeholder="Scrivi ELIMINA" autoComplete="off" />
+              <button className="dangerButton" type="button" disabled={deletingAccount || deletePhrase.trim() !== 'ELIMINA'} onClick={deleteAccount}>{deletingAccount ? 'ELIMINAZIONE…' : 'ELIMINA DEFINITIVAMENTE'}</button>
+            </>}
+            {accountState && <div className="notice">{accountState}</div>}
+          </Card>
         </>}
 
         {tab === 'Regolamento' && <>
@@ -726,7 +800,7 @@ function riderVars(meta) {
 }
 
 function navIcon(x) {
-  return ({Home:'🏠',News:'📰',Calendario:'🗓️',Storico:'🧠',Paddock:'🏆',Pronostico:'🎯',Regolamento:'📜',Admin:'🛠️'})[x];
+  return ({Home:'🏠',News:'📰',Calendario:'🗓️',Storico:'🧠',Paddock:'🏆',Pronostico:'🎯',Account:'👤',Regolamento:'📜',Admin:'🛠️'})[x];
 }
 
 
