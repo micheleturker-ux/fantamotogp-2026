@@ -1,65 +1,73 @@
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
-const FEED = 'https://it.motorsport.com/rss/motogp/news/';
+const FEED = "https://it.motorsport.com/rss/motogp/news/";
 
-function decode(s = '') {
-  return s
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/&amp;/g, '&')
+function decodeEntities(text = "") {
+  return text
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
 
-function tag(block, name) {
-  const m = block.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, 'i'));
-  return m ? decode(m[1].trim()) : '';
+function getTag(block, name) {
+  const regex = new RegExp(
+    `<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`,
+    "i"
+  );
+
+  const match = block.match(regex);
+
+  return match ? decodeEntities(match[1].trim()) : "";
 }
 
-function cleanHtml(s = '') {
-  return decode(s)
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
+function cleanText(text = "") {
+  return decodeEntities(text)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 export async function GET() {
   try {
-    const res = await fetch(FEED, {
-      next: { revalidate: 300 },
-      headers: { 'User-Agent': 'FantaMotoGP/1.0' }
+    const response = await fetch(FEED, {
+      cache: "no-store",
     });
 
-    if (!res.ok) {
-      throw new Error(`RSS ${res.status}`);
+    if (!response.ok) {
+      return Response.json({
+        error: `Feed RSS non disponibile (${response.status})`,
+        items: [],
+      });
     }
 
-    const xml = await res.text();
-    const blocks = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((m) => m[1]);
+    const xml = await response.text();
+
+    const blocks = Array.from(
+      xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)
+    ).map((match) => match[1]);
 
     const items = blocks
       .slice(0, 24)
-      .map((b) => ({
-        title: cleanHtml(tag(b, 'title')),
-        link: tag(b, 'link'),
-        pubDate: tag(b, 'pubDate'),
-        summary: cleanHtml(tag(b, 'description')).slice(0, 260)
+      .map((block) => ({
+        title: cleanText(getTag(block, "title")),
+        link: getTag(block, "link"),
+        pubDate: getTag(block, "pubDate"),
+        summary: cleanText(getTag(block, "description")).slice(0, 260),
       }))
-      .filter((x) => x.title && x.link);
+      .filter((item) => item.title && item.link);
 
-    return Response.json(
-      { items, updatedAt: new Date().toISOString() },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
-        }
-      }
-    );
-  } catch (e) {
-    return Response.json(
-      { error: e?.message || 'Feed non disponibile', items: [] },
-      { status: 502 }
-    );
+    return Response.json({
+      items,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return Response.json({
+      error: error instanceof Error ? error.message : "Feed non disponibile",
+      items: [],
+    });
   }
 }
