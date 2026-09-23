@@ -34,12 +34,14 @@ export async function POST(request) {
     );
   }
 
-  /*
-   * CLIENT USER
-   * Serve esclusivamente per verificare il JWT ricevuto
-   * dal browser.
-   */
+  // Client usato esclusivamente per verificare
+  // l'identità dell'utente che sta facendo la richiesta.
   const userClient = createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    },
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -50,7 +52,7 @@ export async function POST(request) {
   const {
     data: userData,
     error: userError
-  } = await userClient.auth.getUser(token);
+  } = await userClient.auth.getUser();
 
   if (userError || !userData?.user) {
     console.error(
@@ -66,10 +68,7 @@ export async function POST(request) {
 
   const user = userData.user;
 
-  /*
-   * CLIENT ADMIN
-   * Da qui in avanti viene usata la secret server-side.
-   */
+  // Client privilegiato: rimane esclusivamente lato server.
   const admin = createClient(url, secretKey, {
     auth: {
       persistSession: false,
@@ -99,6 +98,8 @@ export async function POST(request) {
     );
   }
 
+  // Protezione aggiuntiva:
+  // l'account Admin non può essere eliminato dall'app.
   if (profile?.role === 'admin') {
     return json(
       {
@@ -109,13 +110,8 @@ export async function POST(request) {
     );
   }
 
-  /*
-   * 1. Anonimizza e scollega lo storico.
-   *
-   * Se il profilo non esiste già, significa che il retirement
-   * potrebbe essere stato completato in un tentativo precedente:
-   * in quel caso procediamo con la sola cancellazione Auth.
-   */
+  // Prima conserviamo lo storico sportivo
+  // separandolo dall'identità Auth dell'utente.
   if (profile) {
     const {
       error: retireError
@@ -142,9 +138,8 @@ export async function POST(request) {
     }
   }
 
-  /*
-   * 2. Elimina definitivamente l'utente Supabase Auth.
-   */
+  // Solo dopo l'anonimizzazione dello storico
+  // eliminiamo l'utente da Supabase Auth.
   const {
     error: deleteError
   } = await admin.auth.admin.deleteUser(user.id);
