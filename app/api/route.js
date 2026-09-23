@@ -1,74 +1,91 @@
-import { createClient } from '@supabase/supabase-js';
+export const revalidate = 300;
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+const FEED = 'https://it.motorsport.com/rss/motogp/news/';
 
-function json(body, status = 200) {
-  return Response.json(body, { status });
+function decode(s = '') {
+  return String(s)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }
 
-export async function POST(request) {
-  const authHeader = request.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+function tag(block, name) {
+  const match = block.match(
+    new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, 'i')
+  );
 
-  if (!token) return json({ error: 'Sessione non valida.' }, 401);
+  return match ? match[1].trim() : '';
+}
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+function cleanHtml(s = '') {
+  return decode(s)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-  if (!url || !serviceKey) {
-    console.error('Missing Supabase server environment variables');
-    return json({ error: 'Configurazione server incompleta.' }, 500);
-  }
-
-  const admin = createClient(url, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
-    }
-  });
-
-  const { data: userData, error: userError } = await admin.auth.getUser(token);
-  const user = userData?.user;
-
-  if (userError || !user) return json({ error: 'Sessione scaduta. Accedi di nuovo.' }, 401);
-
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('id, role, player_id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    console.error('Profile lookup failed', profileError.message);
-    return json({ error: 'Impossibile verificare il profilo.' }, 500);
-  }
-
-  if (profile?.role === 'admin') {
-    return json({ error: 'L’account Admin non può essere eliminato dall’app.' }, 403);
-  }
-
-  // Idempotente: se il retirement e gia avvenuto, ritenta solo la cancellazione Auth.
-  if (profile) {
-    const { error: retireError } = await admin.rpc('retire_account_history', {
-      p_auth_user_id: user.id
+export async function GET() {
+  try {
+    const res = await fetch(FEED, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 FantaMotoGP/2026',
+        Accept: 'application/rss+xml, application/xml, text/xml'
+      },
+      next: {
+        revalidate: 300
+      }
     });
 
-    if (retireError) {
-      console.error('History retirement failed', retireError.message);
-      return json({ error: 'Impossibile anonimizzare lo storico. Nessun account Auth è stato eliminato.' }, 500);
+    if (!res.ok) {
+      throw new Error(`RSS ${res.status}`);
     }
-  }
 
-  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
+    const xml = await res.text();
 
-  if (deleteError) {
-    console.error('Auth deletion failed', deleteError.message);
-    return json({
-      error: 'Profilo disattivato, ma la rimozione finale delle credenziali non è riuscita. Riprova.'
-    }, 500);
-  }
+    const items = [
+      ...xml.matchAll(/<item\b[\s\S]*?<\/item>/gi)
+    ]
+      .slice(0, 20)
+      .map(match => {
+        const block = match[0];
 
-  return json({ ok: true });
+        return {
+          title: decode(tag(block, 'title')),
+          link: decode(tag(block, 'link')),
+          pubDate: decode(tag(block, 'pubDate')),
+          summary: cleanHtml(tag(block, 'description'))
+        };
+      })
+      .filter(item => item.title && item.link);
+
+    return Response.json(
+      {
+        items,
+        updatedAt: new Date().toISOString()
+      },
+      {
+        headers: {
+          'Cache-Control':
+            'public, s-maxage=300, stale-while-revalidate=600'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('RSS error:', error);
+
+    return Response.json(
+      {
+        error: 'Feed non disponibile',
+        items: []
+      },
+      {
+        status: 502
+      }
+    );
+  } 
 }
