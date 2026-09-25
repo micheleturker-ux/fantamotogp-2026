@@ -456,3 +456,58 @@
   .riderChoiceCompact .riderArt.compact{min-height:68px;height:68px}
   .predictionSaveBar{bottom:82px}
 }
+
+
+/* =========================================================
+   STEP 12 - IL MIO CAMPIONATO / PLAYER RESULTS
+   ========================================================= */
+
+.theme-campionato{--sectionAccent:#46d6ff;--sectionAccent2:#8d71d6}
+
+.topbarActions{display:flex;align-items:center;gap:8px}
+.playerQuickAvatar{width:36px;height:36px;border-radius:50%;border:1px solid #ffffff1a;background:radial-gradient(circle at 35% 25%,#4b586d,#151b25 68%);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px #0006,0 0 18px #46d6ff18;padding:0}
+.playerQuickAvatar span{font-size:14px;font-weight:1000;letter-spacing:-.3px}
+.playerQuickAvatar:active{transform:scale(.96)}
+
+.mySeasonTitle{padding-bottom:14px}
+.profileBackButton{border:0;background:transparent;color:#8e98a8;padding:0 0 14px;font-size:10px;font-weight:950;letter-spacing:1px;cursor:pointer}
+.profileBackButton:hover{color:#fff}
+
+.mySeasonHero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;position:relative;overflow:hidden;border-color:#31536d;background:radial-gradient(circle at 0 0,#1e6f8a40,transparent 42%),radial-gradient(circle at 100% 0,#6e48a82c,transparent 40%),linear-gradient(145deg,#111923,#0e1219)}
+.mySeasonHero:after{content:"";position:absolute;right:-40px;bottom:-80px;width:220px;height:220px;border-radius:50%;background:#46d6ff0b;filter:blur(3px)}
+.mySeasonAvatar{width:74px;height:74px;border-radius:24px;position:relative;display:grid;place-items:center;background:linear-gradient(145deg,#27384b,#10151d);border:1px solid #4b6a83;box-shadow:inset 0 1px 0 #ffffff16,0 12px 28px #0007;overflow:hidden}
+.mySeasonAvatar:before{content:"";position:absolute;inset:0;background:linear-gradient(125deg,transparent 0 47%,#46d6ff22 48% 55%,transparent 56%)}
+.mySeasonAvatar span{font-size:32px;font-weight:1000;font-style:italic;z-index:1}
+.mySeasonAvatar i{position:absolute;right:7px;bottom:5px;font-style:italic;font-size:8px;font-weight:1000;color:#ff514a;z-index:1}
+.mySeasonIdentity{min-width:0;z-index:1}.mySeasonIdentity small{font-size:8px;font-weight:1000;letter-spacing:1.5px;color:#6ddcf0}.mySeasonIdentity h2{margin:5px 0 4px;font-size:24px;line-height:1.05;overflow-wrap:anywhere}.mySeasonIdentity p{margin:0;color:#9ca6b5;font-size:11px}
+.mySeasonRank{z-index:1;min-width:58px;text-align:right;font-size:34px;font-weight:1000;line-height:1;color:#fff}.mySeasonRank span{font-size:14px;color:#46d6ff;margin-right:2px}
+
+.mySeasonStats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:12px}
+.mySeasonStats .card{padding:14px;min-height:102px;display:flex;flex-direction:column;justify-content:flex-end}
+.mySeasonStats small{font-size:8px;font-weight:1000;letter-spacing:1px;color:#7f8999}
+.mySeasonStats strong{display:block;font-size:26px;line-height:1;margin:8px 0 5px}
+.mySeasonStats span{font-size:9px;color:#929cab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.mySeasonSectionHead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:28px 2px 11px}.mySeasonSectionHead>div>span{font-size:8px;color:#46d6ff;font-weight:1000;letter-spacing:1.5px}.mySeasonSectionHead h2{margin:3px 0 0;font-size:20px}.mySeasonSectionHead>small{font-size:9px;color:#7f8998}
+
+.gpResultsList{display:grid;gap:9px}.gpResultCard{border:1px solid #283440;border-radius:17px;background:linear-gradient(130deg,#111821,#0d1218);overflow:hidden;box-shadow:0 10px 28px #0004}.gpResultCard[open]{border-color:#37617a;box-shadow:0 14px 34px #0006,0 0 22px #46d6ff10}.gpResultCard summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:40px minmax(0,1fr) auto 20px;align-items:center;gap:10px;padding:13px}.gpResultCard summary::-webkit-details-marker{display:none}
+.gpResultRound{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:15px;font-weight:1000;color:#74dff1;background:#0d2832;border:1px solid #285567}
+.gpResultIdentity{min-width:0}.gpResultIdentity b{display:block;font-size:14px}.gpResultIdentity span{display:block;margin-top:3px;color:#7f8999;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gpResultTotal{text-align:right}.gpResultTotal strong{font-size:20px}.gpResultTotal small{display:block;color:#7d8795;font-size:7px;font-weight:1000;letter-spacing:1px;margin-top:2px}.gpResultChevron{font-size:18px;color:#667180;transition:transform .18s}.gpResultCard[open] .gpResultChevron{transform:rotate(180deg);color:#6ddcf0}
+
+.gpResultDetails{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 13px 10px}.scoreBreakdown{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px;border-radius:13px;background:#0a0f15;border:1px solid #27313d}.scoreBreakdown>div{min-width:0}.scoreBreakdown span{display:block;font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.6px}.scoreBreakdown>div small{display:block;color:#7f8998;font-size:8px;margin-top:4px;white-space:nowrap}.scoreBreakdown>strong{font-size:17px;white-space:nowrap}.scoreBreakdown>strong small{font-size:7px;color:#747e8d}.scoreBreakdown.missing{opacity:.5}
+.gpResultFooter{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;padding:10px 13px 12px;border-top:1px solid #202936;background:#0a0e14;color:#8791a0;font-size:9px}.gpResultFooter b{color:#e8edf3}.mySeasonEmpty{text-align:center;padding:28px 18px}.mySeasonEmpty h3{margin:0 0 6px}
+
+@media(min-width:700px){
+  .mySeasonStats{grid-template-columns:repeat(4,1fr)}
+  .mySeasonHero{padding:22px}
+  .mySeasonAvatar{width:86px;height:86px}
+  .mySeasonAvatar span{font-size:38px}
+}
+
+@media(max-width:520px){
+  .topbarActions{gap:4px}.playerQuickAvatar{width:33px;height:33px}.topbarActions .ghost{padding-left:5px;padding-right:3px}
+  .mySeasonHero{grid-template-columns:64px minmax(0,1fr) auto;gap:10px;padding:14px}.mySeasonAvatar{width:64px;height:64px;border-radius:20px}.mySeasonAvatar span{font-size:28px}.mySeasonIdentity h2{font-size:20px}.mySeasonRank{font-size:28px;min-width:44px}
+  .mySeasonStats .card{min-height:92px;padding:12px}.mySeasonStats strong{font-size:23px}
+  .gpResultDetails{grid-template-columns:1fr}.gpResultCard summary{grid-template-columns:38px minmax(0,1fr) auto 16px;gap:8px;padding:11px}.gpResultRound{width:38px;height:38px}.gpResultTotal strong{font-size:18px}.gpResultFooter{justify-content:flex-start}
+}
