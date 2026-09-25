@@ -53,6 +53,8 @@ export default function App() {
   const [visiblePredictions, setVisiblePredictions] = useState([]);
   const [mondayReports, setMondayReports] = useState([]);
   const [pagelloneState, setPagelloneState] = useState('');
+  const [myScores, setMyScores] = useState([]);
+  const [scoresState, setScoresState] = useState('');
 
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [form, setForm] = useState({ p1:'', p2:'', p3:'', p4:'', p5:'', fastest:'', crash:'' });
@@ -130,6 +132,15 @@ export default function App() {
     setMondayReports(mr.error ? [] : (mr.data || []));
     const ss = s.data || [];
     setSessions(ss);
+
+    const playerId = p.data?.player_id || session.user.id;
+    const { data: scoreRows, error: scoreError } = await supabase
+      .from('session_scores')
+      .select('*')
+      .eq('user_id', playerId)
+      .order('session_id');
+    setMyScores(scoreError ? [] : (scoreRows || []));
+    setScoresState(scoreError ? scoreError.message : '');
 
     const now = Date.now();
     const upcoming = ss
@@ -317,6 +328,39 @@ export default function App() {
   const deadlineTs = currentSession?.deadline ? new Date(currentSession.deadline).getTime() : null;
   const isOpen = Boolean(currentSession && !currentSession.locked && deadlineTs && nowTs < deadlineTs);
   const countdown = getCountdown(deadlineTs, nowTs);
+  const myPlayerId = profile?.player_id || session?.user?.id;
+  const myRankIndex = leaderboard.findIndex(x => String(x.user_id) === String(myPlayerId));
+  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
+
+  const myGpResults = useMemo(() => {
+    const scoreBySession = new Map(myScores.map(row => [Number(row.session_id), row]));
+
+    return gps
+      .map(gp => {
+        const gpSessions = sessions.filter(s => Number(s.grand_prix_id) === Number(gp.id));
+        const sprintSession = gpSessions.find(s => s.session_type === 'sprint');
+        const raceSession = gpSessions.find(s => s.session_type === 'race');
+        const sprint = sprintSession ? scoreBySession.get(Number(sprintSession.id)) : null;
+        const race = raceSession ? scoreBySession.get(Number(raceSession.id)) : null;
+        const hasScore = Boolean(sprint || race);
+
+        return {
+          ...gp,
+          sprint: sprint || null,
+          race: race || null,
+          hasScore,
+          basePoints: Number(sprint?.base_points || 0) + Number(race?.base_points || 0),
+          bonusPoints: Number(sprint?.bonus_points || 0) + Number(race?.bonus_points || 0),
+          totalPoints: Number(sprint?.total_points || 0) + Number(race?.total_points || 0)
+        };
+      })
+      .filter(gp => gp.hasScore)
+      .sort((a, b) => Number(b.round) - Number(a.round));
+  }, [myScores, sessions, gps]);
+
+  const bestGp = myGpResults.reduce((best, gp) => !best || gp.totalPoints > best.totalPoints ? gp : best, null);
+  const totalBonusPoints = myScores.reduce((sum, row) => sum + Number(row.bonus_points || 0), 0);
+  const scoredSessions = myScores.length;
 
 
   useEffect(() => {
@@ -518,7 +562,12 @@ export default function App() {
             <span className="season">26</span>
           </div>
         </div>
-        <button className="ghost" onClick={logout}>Esci</button>
+        <div className="topbarActions">
+          <button type="button" className="playerQuickAvatar" onClick={()=>setTab('Campionato')} aria-label="Apri il mio campionato" title="Il mio campionato">
+            <span>{(profile?.nickname || 'P').slice(0,1).toUpperCase()}</span>
+          </button>
+          <button className="ghost" onClick={logout}>Esci</button>
+        </div>
       </header>
 
       <div className="content">
@@ -690,6 +739,67 @@ export default function App() {
 
 
 
+        {tab === 'Campionato' && <>
+          <div className="pageTitle mySeasonTitle">
+            <button type="button" className="profileBackButton" onClick={()=>setTab('Home')}>← HOME</button>
+            <Badge tone="orange">RIDER DATA</Badge>
+            <h1>Il mio campionato</h1>
+            <p>Tutti i punti ottenuti, GP dopo GP.</p>
+          </div>
+
+          <Card className="mySeasonHero">
+            <div className="mySeasonAvatar" aria-hidden="true">
+              <span>{(profile?.nickname || 'P').slice(0,1).toUpperCase()}</span>
+              <i>FM</i>
+            </div>
+            <div className="mySeasonIdentity">
+              <small>FANTAMOTOGP 2026</small>
+              <h2>{profile?.nickname || 'Pilota'}</h2>
+              <p>{myRank ? `${myRank}° in classifica` : 'Posizione non disponibile'} · {fmt(me?.total_points || 0)} punti</p>
+            </div>
+            <div className="mySeasonRank"><span>#</span>{myRank || '—'}</div>
+          </Card>
+
+          <div className="mySeasonStats">
+            <Card><small>PUNTI CLASSIFICA</small><strong>{fmt(me?.total_points || 0)}</strong><span>stagione</span></Card>
+            <Card><small>GP CON PUNTEGGIO</small><strong>{myGpResults.length}</strong><span>su {gps.length || 22}</span></Card>
+            <Card><small>MIGLIOR GP</small><strong>{bestGp ? fmt(bestGp.totalPoints) : '—'}</strong><span>{bestGp?.name || 'nessun dato'}</span></Card>
+            <Card><small>BONUS</small><strong>{fmt(totalBonusPoints)}</strong><span>{scoredSessions} sessioni registrate</span></Card>
+          </div>
+
+          <div className="mySeasonSectionHead">
+            <div><span>STORICO</span><h2>Risultati GP</h2></div>
+            <small>{myGpResults.length} GP registrati</small>
+          </div>
+
+          {scoresState && <div className="notice">Storico punteggi non disponibile: {scoresState}</div>}
+
+          {myGpResults.length ? <div className="gpResultsList">
+            {myGpResults.map(gp => <details className="gpResultCard" key={gp.id}>
+              <summary>
+                <div className="gpResultRound">{String(gp.round).padStart(2,'0')}</div>
+                <div className="gpResultIdentity">
+                  <b>{gp.name}</b>
+                  <span>{gp.circuit} · {gp.gp_date ? new Date(`${gp.gp_date}T12:00:00`).toLocaleDateString('it-IT',{day:'2-digit',month:'short'}) : '—'}</span>
+                </div>
+                <div className="gpResultTotal"><strong>{fmt(gp.totalPoints)}</strong><small>PT</small></div>
+                <span className="gpResultChevron">⌄</span>
+              </summary>
+
+              <div className="gpResultDetails">
+                <ScoreBreakdown label="Sprint" score={gp.sprint} />
+                <ScoreBreakdown label="Gara" score={gp.race} />
+              </div>
+
+              <div className="gpResultFooter">
+                <span>Base <b>{fmt(gp.basePoints)}</b></span>
+                <span>Bonus <b>+{fmt(gp.bonusPoints)}</b></span>
+                <span>Totale GP <b>{fmt(gp.totalPoints)}</b></span>
+              </div>
+            </details>)}
+          </div> : !scoresState && <Card className="mySeasonEmpty"><h3>Nessun risultato ancora disponibile.</h3><p className="muted">Quando verranno calcolati i punteggi, compariranno qui GP per GP.</p></Card>}
+        </>}
+
         {tab === 'Account' && <>
           <div className="pageTitle"><Badge tone="neutral">ACCOUNT</Badge><h1>Profilo</h1><p>Gestisci accesso, identità e privacy del tuo account.</p></div>
 
@@ -771,6 +881,20 @@ export default function App() {
       </nav>
     </main>
   );
+}
+
+function ScoreBreakdown({ label, score }) {
+  if (!score) {
+    return <div className="scoreBreakdown missing"><div><span>{label}</span><small>Nessun punteggio registrato</small></div><strong>—</strong></div>;
+  }
+
+  return <div className="scoreBreakdown">
+    <div>
+      <span>{label}</span>
+      <small>Base {fmt(score.base_points)} · Bonus +{fmt(score.bonus_points)}</small>
+    </div>
+    <strong>{fmt(score.total_points)} <small>PT</small></strong>
+  </div>;
 }
 
 function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=false, compact=false, position=null }) {
