@@ -102,3 +102,272 @@
 .theme-account{--sectionAccent:#46d6ff;--sectionAccent2:#8d71d6}
 .bottomNav button[data-tab="account"] span{background:linear-gradient(145deg,#17637b,#26204c)}
 .accountCard{display:grid;gap:0}.accountRow{display:flex;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid #242a34}.accountRow:last-child{border-bottom:0}.accountRow span{color:var(--muted);font-size:11px}.accountRow b{font-size:12px;text-align:right;overflow-wrap:anywhere}.privacyCard h3,.dangerZone h3{margin:10px 0 7px}.privacyCard p,.dangerZone p{line-height:1.55}.dangerZone{border-color:#6c2929;background:linear-gradient(145deg,#1a1012,#101217)}.dangerZone input{margin-top:10px}.dangerButton{width:100%;margin-top:10px;padding:14px;border-radius:13px;border:1px solid #8c3333;background:linear-gradient(135deg,#8f1f1f,#4f1313);color:white;font-weight:1000;letter-spacing:.6px;cursor:pointer}.dangerButton:disabled{opacity:.4;cursor:not-allowed}.dangerButton:not(:disabled):active{transform:translateY(1px)}
+
+
+
+/* =========================================================
+   FMGP BRAND REFRESH
+   Splash / Login / Topbar
+   ========================================================= */
+
+/* ---------- SPLASH SCREEN ---------- */
+
+.appBrandMark {
+  width: 118px;
+  height: 118px;
+  margin: 0 auto 20px;
+  position: relative;
+  border-radius: 28px;
+  overflow: hidden;
+
+  background:
+    radial-gradient(circle at 30% 20%, #ffffff18, transparent 32%),
+    linear-gradient(145deg, #151922, #090b10);
+
+  border: 1px solid #ffffff18;
+
+  box-shadow:
+    0 24px 60px #00000090,
+    0 0 45px #e1060030,
+    inset 0 1px 0 #ffffff18;
+
+  animation: fmgpBrandIntro .7s ease-out both;
+}
+
+.appBrandMark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 42%,
+      #ffffff12 48%,
+      transparent 54%
+    );
+}
+
+.appBrandMark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.splash .appBrandMark + p {
+  margin: 0;
+  color: #9ba4b4;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+
+/* ---------- LOGIN BRAND ---------- */
+
+.brandWithLogo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 18px;
+
+  max-width: 460px;
+  margin: 11vh auto 32px;
+}
+
+.loginBrandLogo {
+  width: 92px;
+  height: 92px;
+  flex: 0 0 92px;
+
+  display: block;
+  object-fit: cover;
+
+  border-radius: 22px;
+
+  border: 1px solid #ffffff18;
+
+  box-shadow:
+    0 22px 55px #00000085,
+    0 0 38px #e1060028;
+}
+
+.brandCopy {
+  min-width: 0;
+}
+
+.brandWithLogo .brandOver {
+  font-size: 12px;
+  letter-spacing: 6px;
+  margin-bottom: 5px;
+  color: #b6becb;
+}
+
+.brandWithLogo .brandMain {
+  font-size: clamp(38px, 9vw, 58px);
+  line-height: .86;
+  letter-spacing: -4px;
+}
+
+.brandWithLogo .brandYear {
+  margin-top: 8px;
+  font-size: 21px;
+  color: #e10600;
+}
+
+
+/* ---------- TOP BAR BRAND ---------- */
+
+.topbarBrand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-style: normal !important;
+}
+
+.topbarLogo {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+
+  display: block;
+  object-fit: cover;
+
+  border-radius: 10px;
+
+  border: 1px solid #ffffff17;
+
+  box-shadow:
+    0 8px 22px #00000060,
+    0 0 18px #e1060022;
+}
+
+.topbarBrandText {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  font-style: italic;
+}
+
+.topbarBrandText .miniLogo {
+  font-weight: 1000;
+  font-size: 10px;
+  color: #f0443e;
+  letter-spacing: .6px;
+}
+
+.topbarBrandText b {
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.topbarBrandText .season {
+  font-size: 10px;
+  color: #8f99aa;
+}
+
+
+/* ---------- SUBTLE RACING DETAIL ---------- */
+
+.topbarBrand {
+  position: relative;
+}
+
+.topbarBrand::after {
+  content: "";
+  position: absolute;
+
+  left: 47px;
+  bottom: -5px;
+
+  width: 48px;
+  height: 2px;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #e10600,
+      #ff493f 55%,
+      transparent
+    );
+
+  opacity: .75;
+}
+
+
+/* ---------- ANIMATION ---------- */
+
+@keyframes fmgpBrandIntro {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ---------- MOBILE ---------- */
+
+@media (max-width: 520px) {
+
+  .brandWithLogo {
+    margin-top: 8vh;
+    gap: 14px;
+  }
+
+  .loginBrandLogo {
+    width: 78px;
+    height: 78px;
+    flex-basis: 78px;
+    border-radius: 19px;
+  }
+
+  .brandWithLogo .brandOver {
+    font-size: 10px;
+    letter-spacing: 5px;
+  }
+
+  .brandWithLogo .brandMain {
+    font-size: 39px;
+    letter-spacing: -3px;
+  }
+
+  .brandWithLogo .brandYear {
+    font-size: 18px;
+  }
+
+  .topbarLogo {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 9px;
+  }
+
+  .topbarBrandText .miniLogo {
+    font-size: 9px;
+  }
+
+  .topbarBrandText b {
+    font-size: 16px;
+  }
+
+  .topbarBrandText .season {
+    font-size: 9px;
+  }
+
+  .topbarBrand::after {
+    left: 43px;
+    width: 42px;
+  }
+}
