@@ -423,16 +423,26 @@ export default function App() {
     if (!error) await bootstrap();
   }
 
-  if (loading) return <main className="splash"><div className="logoMark">FM</div><p>Accensione motori…</p></main>;
+  if (loading) return (
+    <main className="splash">
+      <div className="appBrandMark">
+        <img src="/app-icon-1024.png" alt="FMGP" />
+      </div>
+      <p>Accensione motori…</p>
+    </main>
+  );
 
   if (!session || authMode === 'recovery') {
     return (
       <main className="loginPage">
         <div className="loginGlow" />
-        <div className="brand">
-          <div className="brandOver">FANTA</div>
-          <div className="brandMain">MOTOGP</div>
-          <div className="brandYear">2026</div>
+        <div className="brand brandWithLogo">
+          <img className="loginBrandLogo" src="/app-icon-1024.png" alt="FMGP" />
+          <div className="brandCopy">
+            <div className="brandOver">FANTA</div>
+            <div className="brandMain">MOTOGP</div>
+            <div className="brandYear">2026</div>
+          </div>
         </div>
         <Card className="loginCard authCard">
           <Badge tone="red">PADDOCK ACCESS</Badge>
@@ -500,7 +510,14 @@ export default function App() {
   return (
     <main className={`appShell theme-${tab.toLowerCase()}`}>
       <header className="topbar">
-        <div><span className="miniLogo">FANTA</span><b>MOTOGP</b><span className="season">26</span></div>
+        <div className="topbarBrand">
+          <img src="/app-icon-1024.png" alt="FMGP" className="topbarLogo" />
+          <div className="topbarBrandText">
+            <span className="miniLogo">FANTA</span>
+            <b>MOTOGP</b>
+            <span className="season">26</span>
+          </div>
+        </div>
         <button className="ghost" onClick={logout}>Esci</button>
       </header>
 
