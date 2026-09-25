@@ -565,8 +565,9 @@ export default function App() {
         </>}
 
         {tab === 'Pronostico' && <>
-          <div className="pageTitle"><Badge tone="orange">PIT WALL</Badge><h1>Pronostico</h1><p>Prima della deadline ognuno vede soltanto il proprio.</p></div>
-          <Card>
+          <div className="pageTitle"><Badge tone="orange">PIT WALL</Badge><h1>Pronostico</h1><p>Componi la tua Top 5 in modo rapido. Tocca una posizione e scegli il pilota.</p></div>
+
+          <Card className="predictionSessionCard">
             <label>Sessione
               <select value={selectedSessionId} onChange={e=>setSelectedSessionId(e.target.value)}>
                 {sessions.map(s=><option key={s.id} value={s.id}>#{s.grands_prix?.round} {s.grands_prix?.name} · {s.session_type.toUpperCase()}</option>)}
@@ -575,24 +576,56 @@ export default function App() {
             <div className="sessionMeta"><Badge tone={isOpen?'green':'neutral'}>{isOpen?'APERTA':'CHIUSA'}</Badge><span>{formatDeadline(currentSession?.deadline)}</span></div>
             <Countdown countdown={countdown} isOpen={isOpen} />
           </Card>
-          <form onSubmit={submitPrediction} className="stack">
-            <Card>
-              <h3>Top 5</h3>
-              {[1,2,3,4,5].map(n=><RiderSelect key={n} label={`${n}° posizione`} value={form[`p${n}`]} onChange={v=>setForm({...form,[`p${n}`]:v})} riders={riders} disabled={!isOpen} showCard/>) }
+
+          <form onSubmit={submitPrediction} className="stack predictionForm">
+            <Card className="predictionTop5Card">
+              <div className="predictionSectionHead">
+                <div>
+                  <span className="predictionEyebrow">GRIGLIA PERSONALE</span>
+                  <h3>Top 5</h3>
+                </div>
+                <span className="predictionHint">5 piloti diversi</span>
+              </div>
+
+              <div className="predictionSlotList">
+                {[1,2,3,4,5].map(n=><RiderSelect
+                  key={n}
+                  label={`${n}° posizione`}
+                  position={n}
+                  value={form[`p${n}`]}
+                  onChange={v=>setForm({...form,[`p${n}`]:v})}
+                  riders={riders}
+                  disabled={!isOpen}
+                  showCard
+                  compact
+                />)}
+              </div>
             </Card>
-            <Card>
-              <h3>Bonus</h3>
-              <RiderSelect label="⚡ Giro veloce" value={form.fastest} onChange={v=>setForm({...form,fastest:v})} riders={riders} disabled={!isOpen} showCard/>
-              <RiderSelect label="💥 Caduta" value={form.crash} onChange={v=>setForm({...form,crash:v})} riders={riders} disabled={!isOpen} showCard/>
+
+            <Card className="predictionBonusCard">
+              <div className="predictionSectionHead">
+                <div>
+                  <span className="predictionEyebrow">EXTRA</span>
+                  <h3>Bonus</h3>
+                </div>
+                <span className="predictionHint">+ punti decisivi</span>
+              </div>
+
+              <div className="predictionBonusGrid">
+                <RiderSelect label="⚡ Giro veloce" value={form.fastest} onChange={v=>setForm({...form,fastest:v})} riders={riders} disabled={!isOpen} showCard compact/>
+                <RiderSelect label="💥 Caduta" value={form.crash} onChange={v=>setForm({...form,crash:v})} riders={riders} disabled={!isOpen} showCard compact/>
+              </div>
             </Card>
-            <button className="primary" disabled={!isOpen}>{myPrediction?'AGGIORNA PRONOSTICO':'SALVA PRONOSTICO'} 🔒</button>
-            {saveState && <div className="notice">{saveState}</div>}
+
+            <div className="predictionSaveBar">
+              <button className="primary predictionSaveButton" disabled={!isOpen}>{myPrediction?'AGGIORNA PRONOSTICO':'SALVA PRONOSTICO'} 🔒</button>
+              {saveState && <div className="predictionSaveState">{saveState}</div>}
+            </div>
           </form>
 
           {visiblePredictions.length > 1 && <><h2 className="sectionTitle">Pronostici sbloccati</h2>
             {visiblePredictions.map(p=><Card key={p.id}><b>{p.players?.display_name || 'Giocatore'}</b><p className="muted">Pronostico visibile dopo la chiusura.</p></Card>)}</>}
         </>}
-
 
         {tab === 'News' && <>
           <div className="pageTitle"><Badge tone="red">LIVE FEED</Badge><h1>News MotoGP</h1><p>Ultime notizie, Practice, qualifiche, Sprint e paddock.</p></div>
@@ -740,7 +773,7 @@ export default function App() {
   );
 }
 
-function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=false }) {
+function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=false, compact=false, position=null }) {
   const selected = riders.find(r => String(r.id) === String(value));
   const meta = selected ? getRiderMeta(selected.name) : null;
   const [open, setOpen] = useState(false);
@@ -756,23 +789,44 @@ function RiderSelect({ label, value, onChange, riders, disabled=false, showCard=
     return haystack.includes(query.trim().toLowerCase());
   });
 
-  return <div className="riderPickerField">
+  return <div className={`riderPickerField ${compact?'riderPickerFieldCompact':''}`}>
     <div className="riderPickerLabel">{label}</div>
-    <button type="button" className={`riderPickerButton ${selected ? 'hasRider' : ''}`} disabled={disabled} onClick={()=>!disabled && setOpen(true)}>
-      {selected ? <RiderShowcase rider={selected} meta={meta} /> : <div className="riderEmpty"><span className="riderEmptyFlag">🏁</span><div><b>SCEGLI PILOTA</b><small>Apri il garage MotoGP</small></div><span className="riderEmptyArrow">＋</span></div>}
+    <button type="button" className={`riderPickerButton ${selected ? 'hasRider' : ''} ${compact?'compact':''}`} disabled={disabled} onClick={()=>!disabled && setOpen(true)}>
+      {selected
+        ? (compact
+            ? <RiderCompactSelected rider={selected} meta={meta} position={position} />
+            : <RiderShowcase rider={selected} meta={meta} />)
+        : (compact
+            ? <div className="riderCompactEmpty"><span className="compactPosition">{position || '＋'}</span><div><b>Scegli pilota</b><small>Tocca per aprire la lista</small></div><span className="riderEmptyArrow">＋</span></div>
+            : <div className="riderEmpty"><span className="riderEmptyFlag">🏁</span><div><b>SCEGLI PILOTA</b><small>Apri il garage MotoGP</small></div><span className="riderEmptyArrow">＋</span></div>)}
     </button>
+
     {open && <div className="riderPickerOverlay" role="dialog" aria-modal="true">
       <button type="button" className="riderPickerBackdrop" aria-label="Chiudi" onClick={()=>setOpen(false)} />
-      <section className="riderPickerSheet">
+      <section className={`riderPickerSheet ${compact?'riderPickerSheetCompact':''}`}>
         <div className="riderPickerHead"><div><span className="pickerEyebrow">MOTOGP 2026 · RIDER GARAGE</span><h2>{label}</h2></div><button type="button" className="pickerClose" onClick={()=>setOpen(false)}>×</button></div>
         <div className="riderSearch"><span>⌕</span><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cerca pilota, team o numero…" /></div>
-        <div className="riderPickerGrid">{filtered.map(r=>{const m=getRiderMeta(r.name); const active=String(r.id)===String(value); return <button type="button" key={r.id} className={`riderChoice ${m.teamClass || ''} ${active?'selected':''}`} style={riderVars(m)} data-pattern={m.pattern || 'slash'} onClick={()=>{onChange(String(r.id));setOpen(false);setQuery('')}}>
-          <RiderArt meta={m} compact />
-          <div className="choiceInfo"><div className="choiceTop"><span>{m.flag || '🏁'} #{m.number || '—'}</span><strong>x{String(r.coefficient).replace('.',',')}</strong></div><b>{r.name}</b><small>{m.team || 'MotoGP'}</small><em>{m.bike || 'MotoGP'}</em></div>
-        </button>})}</div>
+        <div className={`riderPickerGrid ${compact?'riderPickerGridCompact':''}`}>
+          {filtered.map(r=>{const m=getRiderMeta(r.name); const active=String(r.id)===String(value); return <button type="button" key={r.id} className={`riderChoice ${compact?'riderChoiceCompact':''} ${m.teamClass || ''} ${active?'selected':''}`} style={riderVars(m)} data-pattern={m.pattern || 'slash'} onClick={()=>{onChange(String(r.id));setOpen(false);setQuery('')}}>
+            <RiderArt meta={m} compact />
+            <div className="choiceInfo"><div className="choiceTop"><span>{m.flag || '🏁'} #{m.number || '—'}</span><strong>x{String(r.coefficient).replace('.',',')}</strong></div><b>{r.name}</b><small>{m.team || 'MotoGP'}</small><em>{m.bike || 'MotoGP'}</em></div>
+          </button>})}
+        </div>
         {!filtered.length && <div className="riderNoResults">Nessun pilota trovato.</div>}
       </section>
     </div>}
+  </div>;
+}
+
+function RiderCompactSelected({ rider, meta, position }) {
+  return <div className={`riderCompactSelected ${meta?.teamClass || ''}`} style={riderVars(meta)} data-pattern={meta?.pattern || 'slash'}>
+    <div className="riderCompactArt"><RiderArt meta={meta} compact /></div>
+    <div className="riderCompactInfo">
+      <div className="riderCompactTop"><span>{position ? `${position}°` : (meta?.flag || '🏁')}</span><small>#{meta?.number || '—'} · x{String(rider.coefficient).replace('.',',')}</small></div>
+      <b>{rider.name}</b>
+      <span>{meta?.team || 'MotoGP'}</span>
+    </div>
+    <div className="riderCompactChange">CAMBIA</div>
   </div>;
 }
 
