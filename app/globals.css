@@ -371,3 +371,88 @@
     width: 42px;
   }
 }
+
+
+
+
+/* =========================================================
+   STEP 11 - PRONOSTICI COMPACT UX
+   Riduce lo scroll, rende Top 5 e bonus piu rapidi da usare
+   ========================================================= */
+
+.predictionSessionCard{margin-bottom:14px}
+.predictionForm{gap:12px}
+.predictionTop5Card,.predictionBonusCard{padding:15px}
+.predictionSectionHead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.predictionSectionHead h3{margin:3px 0 0;font-size:20px}
+.predictionEyebrow{display:block;font-size:8px;font-weight:1000;letter-spacing:1.35px;color:#ff8a3d}
+.predictionHint{font-size:9px;color:#778191;text-transform:uppercase;letter-spacing:.8px;font-weight:900;white-space:nowrap}
+.predictionSlotList{display:grid;gap:7px}
+.predictionBonusGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.riderPickerFieldCompact{margin-top:0}
+.riderPickerFieldCompact .riderPickerLabel{margin:0 0 5px 2px;font-size:10px;color:#9099a8}
+.riderPickerButton.compact{border-radius:14px}
+
+.riderCompactEmpty{min-height:66px;display:grid;grid-template-columns:38px minmax(0,1fr) 24px;align-items:center;gap:10px;padding:8px 11px;border:1px dashed #37404c;border-radius:14px;background:linear-gradient(115deg,#111720,#0d1117);color:white}
+.riderCompactEmpty .compactPosition{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#ffffff08;border:1px solid #ffffff0d;font-weight:1000;color:#ff8a3d}
+.riderCompactEmpty b{display:block;font-size:12px}
+.riderCompactEmpty small{display:block;margin-top:2px;color:#727c8c;font-size:9px}
+.riderCompactEmpty .riderEmptyArrow{font-size:18px;color:#727d8d}
+
+.riderCompactSelected{--riderA:#6b7686;--riderB:#202938;--riderGlow:#6b7686;position:relative;overflow:hidden;min-height:66px;display:grid;grid-template-columns:72px minmax(0,1fr) auto;align-items:center;border:1px solid color-mix(in srgb,var(--riderA) 42%,#2a313c);border-radius:14px;background:radial-gradient(circle at 10% 40%,color-mix(in srgb,var(--riderA) 27%,transparent),transparent 38%),linear-gradient(105deg,#0d1219,color-mix(in srgb,var(--riderB) 24%,#10151d));box-shadow:inset 0 1px 0 #ffffff08}
+.riderCompactSelected:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--riderA),var(--riderB))}
+.riderCompactArt{width:72px;height:64px;overflow:hidden;position:relative}
+.riderCompactArt .riderArt.compact{min-height:64px;height:64px;border-radius:0;background:transparent!important}
+.riderCompactArt .riderArt.compact svg{inset:0 -3px -1px -12px;width:124%;height:66px}
+.riderCompactArt .riderArt.compact .artNumber{font-size:25px;left:8px;top:5px;letter-spacing:-3px}
+.riderCompactArt .artPulse,.riderCompactArt .artTag,.riderCompactArt .artBadge{display:none}
+.riderCompactInfo{min-width:0;padding:8px 8px 8px 0}
+.riderCompactTop{display:flex;align-items:center;gap:7px;margin-bottom:2px}
+.riderCompactTop>span{font-size:9px;font-weight:1000;color:var(--riderA);text-transform:uppercase;letter-spacing:.6px}
+.riderCompactTop small{font-size:8px;color:#9ca5b3}
+.riderCompactInfo>b{display:block;font-size:13px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.riderCompactInfo>span{display:block;margin-top:3px;font-size:8px;color:#8b95a4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.riderCompactChange{padding:0 11px 0 4px;font-size:7px;font-weight:1000;letter-spacing:.8px;color:#6f7988}
+
+/* Picker compatto: piu piloti visibili senza perdere identita */
+.riderPickerSheetCompact{max-height:86vh;padding-top:14px}
+.riderPickerGridCompact{gap:6px}
+.riderChoiceCompact{min-height:72px;grid-template-columns:82px minmax(0,1fr);border-radius:13px}
+.riderChoiceCompact .riderArt.compact{min-height:72px;height:72px;border-radius:0}
+.riderChoiceCompact .riderArt.compact svg{inset:2px -4px 0 -13px;width:124%;height:72px}
+.riderChoiceCompact .riderArt.compact .artNumber{font-size:27px;left:7px;top:5px}
+.riderChoiceCompact .riderArt.compact .artPulse{width:7px;height:7px;right:6px;top:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--riderA) 18%,transparent),0 0 12px var(--riderGlow)}
+.riderChoiceCompact .artBadge,.riderChoiceCompact .artTag{display:none}
+.riderChoiceCompact .choiceInfo{padding:7px 9px 6px 4px}
+.riderChoiceCompact .choiceTop{font-size:8px}
+.riderChoiceCompact .choiceTop span{font-size:9px}
+.riderChoiceCompact .choiceTop strong{padding:3px 5px;font-size:8px}
+.riderChoiceCompact .choiceInfo>b{font-size:13px;margin-top:4px}
+.riderChoiceCompact .choiceInfo small{font-size:8px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.riderChoiceCompact .choiceInfo em{font-size:7px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.predictionSaveBar{position:sticky;bottom:84px;z-index:18;padding:8px 0 3px;background:linear-gradient(180deg,transparent,#090b10 28%,#090b10);margin-top:2px}
+.predictionSaveButton{width:100%;box-shadow:0 10px 30px #d10d0848,0 0 0 1px #ffffff08 inset}
+.predictionSaveState{margin-top:7px;padding:8px 10px;border-radius:10px;background:#151b24;border:1px solid #2b3441;color:#cbd2dc;font-size:10px;text-align:center}
+
+@media(min-width:700px){
+  .riderPickerGridCompact{grid-template-columns:repeat(2,1fr)}
+  .predictionSlotList{grid-template-columns:1fr 1fr}
+  .predictionSlotList .riderPickerFieldCompact:last-child{grid-column:1/-1}
+  .predictionSaveBar{bottom:88px}
+}
+
+@media(max-width:520px){
+  .predictionTop5Card,.predictionBonusCard{padding:13px}
+  .predictionBonusGrid{grid-template-columns:1fr}
+  .predictionHint{font-size:8px}
+  .riderCompactSelected{grid-template-columns:64px minmax(0,1fr) auto;min-height:62px}
+  .riderCompactArt{width:64px;height:60px}
+  .riderCompactArt .riderArt.compact{min-height:60px;height:60px}
+  .riderCompactChange{padding-right:8px}
+  .riderPickerSheetCompact{max-height:91vh}
+  .riderChoiceCompact{grid-template-columns:74px minmax(0,1fr);min-height:68px}
+  .riderChoiceCompact .riderArt.compact{min-height:68px;height:68px}
+  .predictionSaveBar{bottom:82px}
+}
